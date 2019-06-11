@@ -1,3 +1,5 @@
+# IUS spec file for php73-pecl-msgpack, forked from:
+#
 # Fedora spec file for php-pecl-msgpack
 #
 # Copyright (c) 2012-2018 Remi Collet
@@ -10,6 +12,7 @@
 # we don't want -z defs linker flag
 %undefine _strict_symbol_defs_build
 
+%global php         php73
 %global pecl_name   msgpack
 %global with_zts    0%{?__ztsphp:1}
 %global ini_name  40-%{pecl_name}.ini
@@ -18,17 +21,18 @@
 %global        with_msgpack 0
 
 Summary:       API for communicating with MessagePack serialization
-Name:          php-pecl-msgpack
+Name:          %{php}-pecl-msgpack
 Version:       2.0.3
-Release:       2%{?dist}
-Source:        http://pecl.php.net/get/%{pecl_name}-%{version}.tgz
+Release:       3%{?dist}
+Source:        https://pecl.php.net/get/%{pecl_name}-%{version}.tgz
 License:       BSD
-URL:           http://pecl.php.net/package/msgpack
+URL:           https://pecl.php.net/package/msgpack
 
 Patch2:        https://patch-diff.githubusercontent.com/raw/msgpack/msgpack-php/pull/125.patch
 
-BuildRequires: php-devel > 7
-BuildRequires: php-pear
+BuildRequires: %{php}-devel
+# build require pear1's dependencies to avoid mismatched php stacks
+BuildRequires: pear1 %{php}-cli %{php}-common %{php}-xml
 %if %{with_msgpack}
 BuildRequires: msgpack-devel
 %else
@@ -44,6 +48,11 @@ Provides:      php-%{pecl_name} = %{version}
 Provides:      php-%{pecl_name}%{?_isa} = %{version}
 Provides:      php-pecl(%{pecl_name}) = %{version}
 Provides:      php-pecl(%{pecl_name})%{?_isa} = %{version}
+
+# safe replacement
+Provides:      php-pecl-%{pecl_name} = %{version}-%{release}
+Provides:      php-pecl-%{pecl_name}%{?_isa} = %{version}-%{release}
+Conflicts:     php-pecl-%{pecl_name} < %{version}-%{release}
 
 
 %description
@@ -140,7 +149,7 @@ install -D -m 644 %{ini_name} %{buildroot}%{php_ztsinidir}/%{ini_name}
 %endif
 
 # Install the package XML file
-install -D -m 644 package.xml %{buildroot}%{pecl_xmldir}/%{name}.xml
+install -D -m 644 package.xml %{buildroot}%{pecl_xmldir}/%{pecl_name}.xml
 
 # Test & Documentation
 cd NTS
@@ -189,10 +198,28 @@ REPORT_EXIT_STATUS=0 \
 %endif
 
 
+%triggerin -- pear1
+if [ -x %{__pecl} ]; then
+    %{pecl_install} %{pecl_xmldir}/%{pecl_name}.xml >/dev/null || :
+fi
+
+
+%posttrans
+if [ -x %{__pecl} ]; then
+    %{pecl_install} %{pecl_xmldir}/%{pecl_name}.xml >/dev/null || :
+fi
+
+
+%postun
+if [ $1 -eq 0 -a -x %{__pecl} ]; then
+    %{pecl_uninstall} %{pecl_name} >/dev/null || :
+fi
+
+
 %files
 %license NTS/LICENSE
 %doc %{pecl_docdir}/%{pecl_name}
-%{pecl_xmldir}/%{name}.xml
+%{pecl_xmldir}/%{pecl_name}.xml
 
 %config(noreplace) %{php_inidir}/%{ini_name}
 %{php_extdir}/%{pecl_name}.so
@@ -213,6 +240,9 @@ REPORT_EXIT_STATUS=0 \
 
 
 %changelog
+* Tue Jun 11 2019 Carl George <carl@george.computer> - 2.0.3-3
+- Port from Fedora to IUS
+
 * Sat Feb 02 2019 Fedora Release Engineering <releng@fedoraproject.org> - 2.0.3-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_30_Mass_Rebuild
 
